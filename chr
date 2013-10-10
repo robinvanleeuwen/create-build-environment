@@ -1,0 +1,37 @@
+#!/bin/bash
+
+function main {
+
+	if [ "$1" == "" ]; then
+		usage
+	fi
+
+	echo "* binding /dev, /sys, /tmp and /proc"
+	mount -o bind /dev $1/dev
+	mount -o bind /proc $1/proc
+	mount -o bind /sys $1/sys
+	mount -o bind /tmp $1/tmp
+	mount -o bind /tmp $1/tmp 2>&1 > /dev/null
+	echo "* Chrooting into $1"
+	echo
+	sleep 1
+	chroot $1
+	echo "* unbinding /dev, /sys, /tmp and /proc"
+	umount $1/tmp 2>&1 > /dev/null
+	umount $1/dev
+	umount $1/sys
+	umount $1/proc
+	echo "Done"
+}
+
+function usage() { 
+	echo 
+	echo "Chroot into an environement, but also mount /dev, /proc, etc"
+        echo 	
+	echo "Usage: $0 <chroot directory>"
+	echo
+	exit 0
+}
+
+main $1
+

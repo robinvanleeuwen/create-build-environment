@@ -1,0 +1,81 @@
+#!/bin/bash
+
+if [ "$1" == "" ]; then
+        echo "Usage  : $0 <dist> <arch> [title] [rsync-directory to /usr/src]"
+        echo "Example: $0 squeeze i386 banaan"
+        exit 0
+fi
+
+CHROOTDIRS="/root/devel/chroots"
+BASE="/var/cache/pbuilder/"
+DIST=$1
+ARCH=$2
+COWDIR="$BASE/base-$1-$2.cow"
+RSYNCDIR=$4
+
+if [ ! -d $COWDIR ]; then
+        echo "$COWDIR does not exist, did you specify the correct dist and arch?"
+        exit 1;
+fi
+
+#Set title if given else create random number
+R=$RANDOM
+if [ "$3" != "" ]; then
+	R=$3
+fi
+
+DEST=$CHROOTDIRS/$DIST-$ARCH-$R
+
+if [ ! -d $CHROOTDIRS ]; then
+        echo "! chroot directory is set to $CHROOTDIRS, but is not there :("
+        exit 1
+fi
+
+if [ -d $DEST ]; then
+	echo "! chroot directory $DEST is already there"
+	exit 1
+fi
+
+
+echo
+echo "* copying chroot in $DEST"
+cp -r $COWDIR $DEST
+
+
+if [ "$4" != "" ]; then
+	echo "* rsyncing $RSYNCDIR in $DEST/usr/src"
+	rsync -a $RSYNCDIR $DEST/usr/src
+fi
+
+echo "* binding /dev, /sys and /proc"
+mount -o bind /dev $DEST/dev
+mount -o bind /proc $DEST/proc
+mount -o bind /sys $DEST/sys
+mount -o bind /tmp $DEST/tmp
+
+
+echo "* chrooting into environment"
+sleep 2
+echo 
+./chr $DEST
+echo
+
+
+echo "- cleanup environment (Y/n)?"
+read i
+if [ "$i" == "y" ] || [ "$i" == "" ] ; then
+
+	echo "* unbinding $DEST/dev/ , $DEST/sys and $DEST/proc"
+	umount $DEST/dev 2>&1 > /dev/null
+	umount $DEST/sys  2>&1 > /dev/null
+	umount $DEST/proc 2>&1 > /dev/null
+	umount $DEST/tmp 2>&1 > /dev/null
+	echo
+        echo "* removing $DEST"
+        rm -rf $DEST
+
+fi
+
+echo "* done"
+
+
