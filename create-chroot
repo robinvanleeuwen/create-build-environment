@@ -1,9 +1,27 @@
 #!/bin/bash
 
-if [ "$1" == "" ]; then
+
+
+
+function usage() {
         echo "Usage  : $0 <dist> <arch> [title] [rsync-directory to /usr/src]"
         echo "Example: $0 squeeze i386 banaan"
-        exit 0
+}
+
+
+if [ "$#" -lt 2 ]; then
+	usage
+	exit 1
+fi
+
+CHR=`which chr`
+if [ -z "$CHR" ]; then
+	if [ -x ./chr ]; then
+		CHR="./chr"
+	else
+		echo "cannot find 'chr' executable."
+		exit 1
+	fi
 fi
 
 CHROOTDIRS="/root/devel/chroots"
@@ -12,6 +30,7 @@ DIST=$1
 ARCH=$2
 COWDIR="$BASE/base-$1-$2.cow"
 RSYNCDIR=$4
+MOUNTS="dev sys proc tmp"
 
 if [ ! -d $COWDIR ]; then
         echo "$COWDIR does not exist, did you specify the correct dist and arch?"
@@ -42,37 +61,44 @@ echo "* copying chroot in $DEST"
 cp -r $COWDIR $DEST
 
 
-if [ "$4" != "" ]; then
-	echo "* rsyncing $RSYNCDIR in $DEST/usr/src"
-	rsync -a $RSYNCDIR $DEST/usr/src
+if [ "$RSYNCDIR" != "" ]; then
+	if [ -d $RSYNCDIR ]; then
+		echo "* rsyncing $RSYNCDIR in $DEST/usr/src"
+		rsync -a $RSYNCDIR $DEST/usr/src
+	else
+		echo "* cannot find $RSYNCDIR. No rsync is performed"
+	fi
 fi
-
-echo "* binding /dev, /sys and /proc"
-mount -o bind /dev $DEST/dev
-mount -o bind /proc $DEST/proc
-mount -o bind /sys $DEST/sys
-mount -o bind /tmp $DEST/tmp
 
 
 echo "* chrooting into environment"
-sleep 2
+sleep 1
 echo 
-./chr $DEST
+$CHR $DEST
 echo
 
 
-echo "- cleanup environment (Y/n)?"
+echo "- cleanup environment (y/N)?"
 read i
-if [ "$i" == "y" ] || [ "$i" == "" ] ; then
+if [ "$i" == "y" ] ; then
+	
+	# doublecheck. All mounts should have been removed when chr exits
+	# refuse to cleanup if any still exists
+	GOODTOGO="y"
+	for mp in ${MOUNTS}; do 
+		mount | grep " on $DEST/${mp} " &>/dev/null
+		if [ $? -eq 0 ]; then
+			GOODTOGO="n"
+			echo "$DEST/${mp} still mounted!"
+		fi
+	done
 
-	echo "* unbinding $DEST/dev/ , $DEST/sys and $DEST/proc"
-	umount $DEST/dev 2>&1 > /dev/null
-	umount $DEST/sys  2>&1 > /dev/null
-	umount $DEST/proc 2>&1 > /dev/null
-	umount $DEST/tmp 2>&1 > /dev/null
-	echo
-        echo "* removing $DEST"
-        rm -rf $DEST
+	if [ "$GOODTOGO" == "y" ]; then
+        	echo "* removing $DEST"
+        	rm -rf $DEST
+	else
+		echo "Found mounts into $DEST. Refusing to remove."
+	fi
 
 fi
 
