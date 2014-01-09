@@ -14,6 +14,15 @@ if [ "$#" -lt 2 ]; then
 	exit 1
 fi
 
+CHR=`which chr`
+if [ -z "$CHR" ]; then
+	if [ -x ./chr ]; then
+		CHR="./chr"
+	else
+		echo "cannot find 'chr' executable."
+		exit 1
+	fi
+fi
 
 CHROOTDIRS="/root/devel/chroots"
 BASE="/var/cache/pbuilder/"
@@ -65,7 +74,7 @@ fi
 echo "* chrooting into environment"
 sleep 1
 echo 
-./chr $DEST
+chr $DEST
 echo
 
 

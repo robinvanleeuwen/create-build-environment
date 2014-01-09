@@ -11,7 +11,17 @@ function main {
 		usage
 		exit 0
 	fi
-	TARGET=${CHROOTDIRS}/$1
+	if [ -d $1 ]; then
+		TARGET=$1
+	else
+		if [ -d ${CHROOTDIRS}/$1 ]; then
+			TARGET=${CHROOTDIRS}/$1
+		else
+			echo "cannot locate $1"
+			exit 1
+		fi
+	fi	
+
 
 	echo "* binding /dev, /sys, /tmp and /proc"
 	for mp in ${MOUNTS}; do
