@@ -74,7 +74,7 @@ fi
 echo "* chrooting into environment"
 sleep 1
 echo 
-chr $DEST
+$CHR $DEST
 echo
 
 
